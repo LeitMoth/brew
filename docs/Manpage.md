@@ -105,7 +105,7 @@ only do this for the given formulae and casks. Removes all downloads more than
 * `-n`, `--dry-run`:
   Show what would be removed, but do not actually remove anything.
 * `-s`:
-  Scrub the cache, including downloads for even the latest versions. Note downloads for any installed formulae or casks will still not be deleted. If you want to delete those too: `rm -rf "$(brew --cache)"`
+  Scrub the cache, including downloads for even the latest versions. Note that downloads for any installed formulae or casks will still not be deleted. If you want to delete those too: `rm -rf "$(brew --cache)"`
 * `--prune-prefix`:
   Only prune the symlinks and directories from the prefix and remove no other files.
 
@@ -320,8 +320,6 @@ is already installed but outdated.
   Print the verification and postinstall steps.
 * `--formula`:
   Treat all named arguments as formulae.
-* `--env`:
-  Disabled other than for internal Homebrew use.
 * `--ignore-dependencies`:
   An unsupported Homebrew development flag to skip installing any dependencies of any kind. If the dependencies are not already present, the formula will have issues. If you're not developing Homebrew, consider adjusting your PATH rather than using this flag.
 * `--only-dependencies`:
@@ -350,6 +348,8 @@ is already installed but outdated.
   Download and patch *`formula`*, then open a shell. This allows the user to run `./configure --help` and otherwise determine how to turn the software package into a Homebrew package.
 * `-g`, `--git`:
   Create a Git repository, useful for creating patches to the software.
+* `--overwrite`:
+  Delete files that already exist in the prefix while linking.
 * `--cask`:
   Treat all named arguments as casks.
 * `--[no-]binaries`:
@@ -592,8 +592,9 @@ The search for *`text`* is extended online to `homebrew/core` and `homebrew/cask
 Print export statements. When run in a shell, this installation of Homebrew will be added to your `PATH`, `MANPATH`, and `INFOPATH`.
 
 The variables `HOMEBREW_PREFIX`, `HOMEBREW_CELLAR` and `HOMEBREW_REPOSITORY` are also exported to avoid querying them multiple times.
-The variable `HOMEBREW_SHELLENV_PREFIX` will be exported to avoid adding duplicate entries to the environment variables.
-Consider adding evaluation of this command's output to your dotfiles (e.g. `~/.profile`, `~/.bash_profile`, or `~/.zprofile`) with: `eval "$(brew shellenv)"`
+To help guarantee idempotence, this command produces no output when Homebrew's `bin` and `sbin` directories are first and second
+respectively in your `PATH`. Consider adding evaluation of this command's output to your dotfiles (e.g. `~/.profile`,
+`~/.bash_profile`, or `~/.zprofile`) with: `eval "$(brew shellenv)"`
 
 ### `tap` [*`options`*] [*`user`*`/`*`repo`*] [*`URL`*]
 
@@ -611,10 +612,6 @@ simplifies but also limits. This two-argument command makes no
 assumptions, so taps can be cloned from places other than GitHub and
 using protocols other than HTTPS, e.g. SSH, git, HTTP, FTP(S), rsync.
 
-* `--full`:
-  Convert a shallow clone to a full clone without untapping. Taps are only cloned as shallow clones if `--shallow` was originally passed.
-* `--shallow`:
-  Fetch tap as a shallow clone rather than a full clone. Useful for continuous integration.
 * `--force-auto-update`:
   Auto-update tap even if it is not hosted on GitHub. By default, only taps hosted on GitHub are auto-updated (for performance reasons).
 * `--custom-remote`:
@@ -851,6 +848,8 @@ non-zero status if any errors are found.
   Run additional, slower style checks that navigate the Git repository.
 * `--online`:
   Run additional, slower style checks that require a network connection.
+* `--installed`:
+  Only check formulae and casks that are currently installed.
 * `--new`:
   Run various additional style checks to determine if a new formula or cask is eligible for Homebrew. This should be used when creating new formula and implies `--strict` and `--online`.
 * `--[no-]appcast`:
@@ -931,6 +930,8 @@ formulae, also displays whether a pull request has been opened with the URL.
   Check only formulae.
 * `--cask`:
   Check only casks.
+* `--open-pr`:
+  Open a pull request for the new version if there are none already open.
 * `--limit`:
   Limit number of package results returned.
 * `--start-with`:
@@ -1033,6 +1034,8 @@ present, "revision 1" will be added.
 
 * `-n`, `--dry-run`:
   Print what would be done rather than doing it.
+* `--remove-bottle-block`:
+  Remove the bottle block in addition to bumping the revision.
 * `--write-only`:
   Make the expected file modifications without taking any Git actions.
 * `--message`:
@@ -1238,8 +1241,6 @@ Find pull requests that can be automatically merged using `brew pr-publish`.
   Pull requests do not require approval to be merged.
 * `--publish`:
   Run `brew pr-publish` on matching pull requests.
-* `--autosquash`:
-  Instruct `brew pr-publish` to automatically reformat and reword commits in the pull request to our preferred format.
 * `--no-autosquash`:
   Instruct `brew pr-publish` to skip automatically reformatting and rewording commits in the pull request to the preferred format.
 * `--ignore-failures`:
@@ -1250,8 +1251,6 @@ Find pull requests that can be automatically merged using `brew pr-publish`.
 Publish bottles for a pull request with GitHub Actions.
 Requires write access to the repository.
 
-* `--autosquash`:
-  If supported on the target tap, automatically reformat and reword commits in the pull request to our preferred format.
 * `--no-autosquash`:
   Skip automatically reformatting and rewording commits in the pull request to the preferred format, even if supported on the target tap.
 * `--branch`:
@@ -1279,8 +1278,8 @@ Requires write access to the repository.
   Do not amend the commits from pull requests.
 * `--keep-old`:
   If the formula specifies a rebuild version, attempt to preserve its value in the generated DSL.
-* `--autosquash`:
-  Automatically reformat and reword commits in the pull request to our preferred format.
+* `--no-autosquash`:
+  Skip automatically reformatting and rewording commits in the pull request to our preferred format.
 * `--branch-okay`:
   Do not warn if pulling to a branch besides the repository default (useful for testing).
 * `--resolve`:
@@ -1480,7 +1479,7 @@ Show the unbottled dependents of formulae.
   Use the specified bottle tag (e.g. `big_sur`) instead of the current OS.
 * `--dependents`:
   Skip getting analytics data and sort by number of dependents instead.
-* `--total`:
+* `--all`:
   Print the number of unbottled and total formulae.
 
 ### `unpack` [*`options`*] *`formula`* [...]
@@ -1650,10 +1649,12 @@ to send a notification when the autoupdate process has finished successfully.
 
 * `--upgrade`:
   Automatically upgrade your installed formulae. If the Caskroom exists locally Casks will be upgraded as well. Must be passed with `start`.
+* `--greedy`:
+  Upgrade casks with --greedy (include auto-updating casks). Must be passed with `start`.
 * `--cleanup`:
   Automatically clean brew's cache and logs. Must be passed with `start`.
 * `--enable-notification`:
-  Send a notification when the autoupdate process has finished successfully, if `terminal-notifier` is installed & found. Note that currently a new experimental notifier runs automatically on macOS Catalina and newer, without requiring any external dependencies. Must be passed with `start`.
+  Send a notification when the autoupdate process has finished successfully, if `terminal-notifier` is installed & found. Must be passed with `start`. <NOTE: Notifications are enabled by default on macOS Catalina and newer.>
 * `--immediate`:
   Starts the autoupdate command immediately, instead of waiting for one interval (24 hours by default) to pass first. Must be passed with `start`.
 
@@ -1738,7 +1739,10 @@ Manage background services with macOS' `launchctl`(1) daemon manager.
 If `sudo` is passed, operate on `/Library/LaunchDaemons` (started at boot).
 Otherwise, operate on `~/Library/LaunchAgents` (started at login).
 
-[`sudo`] `brew services` [`list`]
+[`sudo`] `brew services` [`list`] (`--json`)
+<br>List information about all managed services for the current user (or root).
+
+[`sudo`] `brew services info` (*`formula`*|`--all`|`--json`)
 <br>List all managed services for the current user (or root).
 
 [`sudo`] `brew services run` (*`formula`*|`--all`)
@@ -1750,6 +1754,9 @@ Otherwise, operate on `~/Library/LaunchAgents` (started at login).
 [`sudo`] `brew services stop` (*`formula`*|`--all`)
 <br>Stop the service *`formula`* immediately and unregister it from launching at login (or boot).
 
+[`sudo`] `brew services kill` (*`formula`*|`--all`)
+<br>Stop the service *`formula`* immediately but keep it registered to launch at login (or boot).
+
 [`sudo`] `brew services restart` (*`formula`*|`--all`)
 <br>Stop (if necessary) and start the service *`formula`* immediately and register it to launch at login (or boot).
 
@@ -1757,9 +1764,11 @@ Otherwise, operate on `~/Library/LaunchAgents` (started at login).
 <br>Remove all unused services.
 
 * `--file`:
-  Use the plist file from this location to start or run the service.
+  Use the plist file from this location to `start` or `run` the service.
 * `--all`:
   Run *`subcommand`* on all services.
+* `--json`:
+  Output as JSON.
 
 ### `test-bot` [*`options`*] [*`formula`*]
 
@@ -2030,8 +2039,11 @@ example, run `export HOMEBREW_NO_INSECURE_REDIRECT=1` rather than just
 - `HOMEBREW_GITHUB_PACKAGES_TOKEN`
   <br>Use this GitHub personal access token when accessing the GitHub Packages Registry (where bottles may be stored).
 
+- `HOMEBREW_DOCKER_REGISTRY_BASIC_AUTH_TOKEN`
+  <br>Use this base64 encoded username and password for authenticating with a Docker registry proxying GitHub Packages. If HOMEBREW_DOCKER_REGISTRY_TOKEN is set, it will be used instead.
+
 - `HOMEBREW_DOCKER_REGISTRY_TOKEN`
-  <br>Use this bearer token for authenticating with a Docker registry proxying GitHub Packages.
+  <br>Use this bearer token for authenticating with a Docker registry proxying GitHub Packages. Preferred over HOMEBREW_DOCKER_REGISTRY_TOKEN_BASIC.
 
 - `HOMEBREW_GITHUB_PACKAGES_USER`
   <br>Use this username when accessing the GitHub Packages Registry (where bottles may be stored).
@@ -2199,15 +2211,13 @@ Homebrew API: <https://rubydoc.brew.sh>
 
 Homebrew's Project Leader is Mike McQuaid.
 
-Homebrew's Project Leadership Committee is Issy Long, Jonathan Chang, Markus Reiter, Misty De Meo and Sean Molenaar.
+Homebrew's Project Leadership Committee is Issy Long, Jonathan Chang, Markus Reiter, Misty De Méo and Sean Molenaar.
 
 Homebrew's Technical Steering Committee is Bo Anderson, FX Coudert, Michka Popoff, Mike McQuaid and Rylan Polster.
 
-Homebrew's Linux maintainers are Daniel Nachun, Dawid Dziurla, Issy Long, Jonathan Chang, Michka Popoff and Shaun Jackman.
+Homebrew's other current maintainers are Alexander Bayandin, Bevan Kay, Branch Vincent, Caleb Xu, Carlo Cabrera, Connor, Daniel Nachun, Dawid Dziurla, Dustin Rodrigues, Eric Knibbe, George Adams, Maxim Belkin, Miccal Matthews, Michael Cho, Nanda H Krishna, Randall, Rui Chen, Sam Ford, Shaun Jackman, Steve Peters, Thierry Moisan, Tom Schoonjans and Vítor Galvão.
 
-Homebrew's other current maintainers are Alexander Bayandin, Bevan Kay, Branch Vincent, Caleb Xu, Carlo Cabrera, Connor Mann, Dustin Rodrigues, Eric Knibbe, George Adams, Maxim Belkin, Miccal Matthews, Michael Cho, Nanda H Krishna, Randall, Sam Ford, Steve Peters, Thierry Moisan, Tom Schoonjans, Vítor Galvão and rui.
-
-Former maintainers with significant contributions include Jan Viljanen, JCount, commitay, Dominyk Tiller, Tim Smith, Baptiste Fontaine, Xu Cheng, Martin Afanasjew, Brett Koonce, Charlie Sharpsteen, Jack Nagel, Adam Vandenberg, Andrew Janke, Alex Dunn, neutric, Tomasz Pajor, Uladzislau Shablinski, Alyssa Ross, ilovezfs, Chongyu Zhu and Homebrew's creator: Max Howell.
+Former maintainers with significant contributions include Claudia Pellegrino, Seeker, William Woodruff, Jan Viljanen, JCount, commitay, Dominyk Tiller, Tim Smith, Baptiste Fontaine, Xu Cheng, Martin Afanasjew, Brett Koonce, Charlie Sharpsteen, Jack Nagel, Adam Vandenberg, Andrew Janke, Alex Dunn, neutric, Tomasz Pajor, Uladzislau Shablinski, Alyssa Ross, ilovezfs, Chongyu Zhu and Homebrew's creator: Max Howell.
 
 ## BUGS
 

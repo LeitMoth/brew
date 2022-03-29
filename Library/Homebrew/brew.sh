@@ -485,7 +485,7 @@ then
   fi
 else
   HOMEBREW_PRODUCT="${HOMEBREW_SYSTEM}brew"
-  [[ -n "${HOMEBREW_LINUX}" ]] && HOMEBREW_OS_VERSION="$(lsb_release -sd 2>/dev/null)"
+  [[ -n "${HOMEBREW_LINUX}" ]] && HOMEBREW_OS_VERSION="$(lsb_release -s -d 2>/dev/null)"
   : "${HOMEBREW_OS_VERSION:=$(uname -r)}"
   HOMEBREW_OS_USER_AGENT_VERSION="${HOMEBREW_OS_VERSION}"
 
@@ -493,8 +493,10 @@ else
   # shellcheck disable=SC2154
   if [[ -n "${HOMEBREW_ON_DEBIAN7}" ]]
   then
-    # Special version for our debian 7 docker container used to build patchelf and binutils
+    # Special version for our debian 7 docker container used to build binutils
     HOMEBREW_MINIMUM_CURL_VERSION="7.25.0"
+    HOMEBREW_SYSTEM_CA_CERTIFICATES_TOO_OLD="1"
+    HOMEBREW_FORCE_BREWED_CA_CERTIFICATES="1"
   else
     # Ensure the system Curl is a version that supports modern HTTPS certificates.
     HOMEBREW_MINIMUM_CURL_VERSION="7.41.0"
@@ -554,7 +556,7 @@ Your Git executable: $(unset git && type -p ${HOMEBREW_GIT})"
   unset HOMEBREW_MACOS_SYSTEM_RUBY_NEW_ENOUGH
 
   HOMEBREW_CORE_REPOSITORY_ORIGIN="$("${HOMEBREW_GIT}" -C "${HOMEBREW_CORE_REPOSITORY}" remote get-url origin 2>/dev/null)"
-  if [[ "${HOMEBREW_CORE_REPOSITORY_ORIGIN}" =~ /linuxbrew-core(\.git)?$ ]]
+  if [[ "${HOMEBREW_CORE_REPOSITORY_ORIGIN}" =~ (/linuxbrew|Linuxbrew/homebrew)-core(\.git)?$ ]]
   then
     # triggers migration code in update.sh
     # shellcheck disable=SC2034
@@ -816,6 +818,16 @@ setup-analytics
 if [[ -n "${HOMEBREW_SSH_CONFIG_PATH}" ]]
 then
   export GIT_SSH_COMMAND="ssh -F${HOMEBREW_SSH_CONFIG_PATH}"
+fi
+
+if [[ -n "${HOMEBREW_ARTIFACT_DOMAIN}" && -n "${HOMEBREW_DOCKER_REGISTRY_TOKEN}" ]]
+then
+  export HOMEBREW_GITHUB_PACKAGES_AUTH="Bearer ${HOMEBREW_DOCKER_REGISTRY_TOKEN}"
+elif [[ -n "${HOMEBREW_ARTIFACT_DOMAIN}" && -n "${HOMEBREW_DOCKER_REGISTRY_BASIC_AUTH_TOKEN}" ]]
+then
+  export HOMEBREW_GITHUB_PACKAGES_AUTH="Basic ${HOMEBREW_DOCKER_REGISTRY_BASIC_AUTH_TOKEN}"
+else
+  export HOMEBREW_GITHUB_PACKAGES_AUTH="Bearer QQ=="
 fi
 
 if [[ -n "${HOMEBREW_BASH_COMMAND}" ]]

@@ -51,6 +51,7 @@ module Homebrew
         }],
         [:flag, "--env=", {
           description: "Disabled other than for internal Homebrew use.",
+          hidden:      true,
         }],
         [:switch, "--ignore-dependencies", {
           description: "An unsupported Homebrew development flag to skip installing any dependencies of any kind. " \
@@ -110,6 +111,9 @@ module Homebrew
         }],
         [:switch, "-g", "--git", {
           description: "Create a Git repository, useful for creating patches to the software.",
+        }],
+        [:switch, "--overwrite", {
+          description: "Delete files that already exist in the prefix while linking.",
         }],
       ].each do |*args, **options|
         send(*args, **options)
@@ -225,6 +229,7 @@ module Homebrew
       interactive:                args.interactive?,
       keep_tmp:                   args.keep_tmp?,
       force:                      args.force?,
+      overwrite:                  args.overwrite?,
       debug:                      args.debug?,
       quiet:                      args.quiet?,
       verbose:                    args.verbose?,

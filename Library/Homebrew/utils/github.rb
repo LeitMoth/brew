@@ -80,6 +80,13 @@ module GitHub
     ["admin", "write"].include?(permission(repo, user)["permission"])
   end
 
+  def branch_exists?(user, repo, branch)
+    API.open_rest("#{API_URL}/repos/#{user}/#{repo}/branches/#{branch}")
+    true
+  rescue API::HTTPNotFoundError
+    false
+  end
+
   def pull_requests(repo, **options)
     url = "#{API_URL}/repos/#{repo}/pulls?#{URI.encode_www_form(options)}"
     API.open_rest(url)
@@ -351,7 +358,7 @@ module GitHub
     end
     raise API::Error, "The team #{org}/#{team} does not exist" if result["organization"]["team"].blank?
 
-    result["organization"]["team"]["members"]["nodes"].map { |member| [member["login"], member["name"]] }.to_h
+    result["organization"]["team"]["members"]["nodes"].to_h { |member| [member["login"], member["name"]] }
   end
 
   def sponsors_by_tier(user)

@@ -64,8 +64,7 @@ class Formula
   include Utils::Shebang
   include Utils::Shell
   include Context
-  include OnOS # TODO: 3.3.0: deprecate OnOS usage in instance methods.
-  extend Enumerable
+  include OnOS
   extend Forwardable
   extend Cachable
   extend Predicable
@@ -1304,6 +1303,7 @@ class Formula
           CMakeCache.txt
           CMakeOutput.log
           CMakeError.log
+          meson-log.txt
         ].each do |logfile|
           Dir["**/#{logfile}"].each do |logpath|
             destdir = logs/File.dirname(logpath)
@@ -1682,16 +1682,21 @@ class Formula
     @full_names ||= core_names + tap_names
   end
 
+  # an array of all {Formula}
+  # this should only be used when users specify `--all` to a command
   # @private
-  def self.each(&_block)
-    files.each do |file|
-      yield Formulary.factory(file)
+  def self.all
+    # TODO: 3.6.0: consider checking ARGV for --all
+
+    files.map do |file|
+      Formulary.factory(file)
     rescue FormulaUnavailableError, FormulaUnreadableError => e
       # Don't let one broken formula break commands. But do complain.
       onoe "Failed to import: #{file}"
       $stderr.puts e
-      next
-    end
+
+      nil
+    end.compact
   end
 
   # An array of all racks currently installed.
@@ -1942,6 +1947,7 @@ class Formula
       "version_scheme"           => version_scheme,
       "bottle"                   => {},
       "keg_only"                 => keg_only?,
+      "keg_only_reason"          => keg_only_reason&.to_hash,
       "bottle_disabled"          => bottle_disabled?,
       "options"                  => [],
       "build_dependencies"       => dependencies.select(&:build?)
@@ -2020,11 +2026,11 @@ class Formula
   def to_recursive_bottle_hash(top_level: true)
     bottle = bottle_hash
 
-    bottles = bottle["files"].map do |tag, file|
+    bottles = bottle["files"].to_h do |tag, file|
       info = { "url" => file["url"] }
       info["sha256"] = file["sha256"] if tap.name != "homebrew/core"
       [tag.to_s, info]
-    end.to_h
+    end
 
     hash = {
       "name"        => name,

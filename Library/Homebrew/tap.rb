@@ -304,6 +304,8 @@ class Tap
 
     begin
       safe_system "git", *args
+      # TODO: 3.6.0: consider if we want to actually read all contents of tap or odeprecate.
+
       if !Readall.valid_tap?(self, aliases: true) && !Homebrew::EnvConfig.developer?
         raise "Cannot tap #{name}: invalid syntax in tap!"
       end
@@ -827,7 +829,7 @@ class CoreTap < Tap
   # @private
   sig { returns(T::Boolean) }
   def linuxbrew_core?
-    remote_repo.to_s.end_with?("/linuxbrew-core")
+    remote_repo.to_s.end_with?("/linuxbrew-core") || remote_repo == "Linuxbrew/homebrew-core"
   end
 
   # @private
